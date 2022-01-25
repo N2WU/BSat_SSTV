@@ -113,60 +113,13 @@ def writeCSV(gpsData, weatherData, index):
 
 
 # DRA818 GPIO Connections
-DRA818_PTT = 17
-# Default Transmitter / Squelch Settings
-MODE = 1 # 1 = FM (supposedly 5kHz deviation), 0 = NFM (2.5 kHz Deviation)
-SQUELCH = 5 # Squelch Value, 0-8
-CTCSS = '0000'
+DRA818_PTT = 27
+DRA818_PD = 4
+DRA818_HL = 22
+GPIO.setup(DRA818_PTT, GPIO.OUT, initial=GPIO.HIGH) 
+GPIO.setup(DRA818_PD, GPIO.OUT, initial=GPIO.LOW)
+GPIO.setup(DRA818_HL, GPIO.OUT, initial=GPIO.LOW) #High or Low power (Keep low)
 
-def dra818_program(port='/dev/ttyUSB0',
-                frequency=146.500):
-    ''' Program a DRA818U/V radio to operate on a particular frequency. '''
-
-
-    _dmosetgroup = "AT+DMOSETGROUP=%d,%3.4f,%3.4f,%s,%d,%s\r\n" % (
-        MODE, frequency, frequency, CTCSS, SQUELCH, CTCSS)
-
-    print("Sending: %s" % _dmosetgroup.strip())
-
-    # Open serial port
-    _s = serial.Serial(
-            port=port,
-            baudrate=9600,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS)
-    # We need to issue this command to be able to send further commands.
-    _s.write("AT+DMOCONNECT\r\n")
-    time.sleep(1.00)
-    _response = _s.readline()
-    print("Connect Response: %s" % _response)
-
-    # Send the programming command..
-    _s.write(_dmosetgroup)
-    time.sleep(1.00)
-
-    # Read in the response from the module.
-    _response = _s.readline()
-    _s.close()
-    
-    print("Response: %s" % _response.strip())
-
-
-def dra818_setup_io():
-    ''' Configure the RPi IO pins for communication with the DRA818 module '''
-    # All pin definitions are in Broadcom format.
-    GPIO.setmode(GPIO.BCM)
-    # Configure pins, and set initial values.
-    GPIO.setup(DRA818_PTT, GPIO.OUT, initial=GPIO.HIGH)
-
-
-def dra818_ptt(enabled):
-    ''' Set the DRA818's PTT on or off '''
-    if enabled:
-        GPIO.output(DRA818_PTT, GPIO.LOW)
-    else:
-        GPIO.output(DRA818_PTT, GPIO.HIGH)
 
 filePath = "/home/pi/timestamped_pics/"
 picTotal = 50
@@ -174,19 +127,6 @@ picCount = 0
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--frequency", type=float, default=146.500, help="Transmit Frequency (MHz)")
-    parser.add_argument("--port", type=str, default='/dev/ttyAMA0', help="Serial port connected to module.")
-    parser.add_argument("--test", action="store_true", default=False, help="Test transmitter after programming with 1s of PTT.")
-    args = parser.parse_args()
-
-    dra818_program(args.port, args.frequency)
-
-    if args.test:
-        dra818_ptt(True)
-        time.sleep(1)
-        dra818_ptt(False)
-        
     while picCount < picTotal:
 
     # Grab the current time
@@ -205,7 +145,8 @@ if __name__ == '__main__':
         weatherData = str(getWeatherData())
     # Create our stamp variable
         timestampMessage = currentTime.strftime("%Y.%m.%d - %H:%M:%S")
-        newTimestampMessage = timestampMessage + "Lat:" + str(gpsData[0]) + ", Lon:" + str(gpsData[1]) + ", Alt (m):" + weatherData[1]  
+        newTimestampMessage = timestampMessage + "Lat:" + str(gpsData[0]) + ", Lon:" + str(gpsData[1])
+        timestamp2 =  "Alt (m):" + weatherData[1] + ", Temp (C):" + weatherData[2]  
     # Create time stamp command to have executed
     # print("Pressure (kPa)" + weatherData[0] + "Altitude (m)" + weatherData[1] + "Temp (C)" + weatherData[2])
     #newTimestampMessage = "'{}'".format(newTimestampMessage)
@@ -213,6 +154,8 @@ if __name__ == '__main__':
         img = Image.open(completeFilePath)
         draw = ImageDraw.Draw(img)
         draw.text((0,0), newTimestampMessage, (255,255,255))
+        draw.text((0,20),timestamp2,(255,255,255))
+        draw.text((0,250),"W2KGY 2022 HAB", (255,255,255))
         img.save(completeFilePath)
     #stringJunk = "drawtext:text='"+newTimestampMessage+"':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.4:boxborderw=5:x=(w-text_w)/2:y=(h-text_h)/2"
     #timestampCommand = 'ffmpeg -i {} -vf "{}" {} -y'.format(completeFilePath,stringJunk,completeFilePath)
@@ -237,11 +180,15 @@ if __name__ == '__main__':
         call(pisstvCommand, shell=True)
         call(renameCommand, shell=True) 
         time.sleep(5)
-    #transmit the image
-        dra818_ptt(True)
-		# Delay slightly.
-		sleep(0.5)
-		self.debug_message("Transmitting...")
-		tx_command = "aplay %s" % "/home/pi/timestamped_pics/sstv.wav"
-		return_code = os.system(tx_command)
-        dra818_ptt(False)
+    #play the audio through the GPIO Pins
+        GPIO.output(DRA818_PD, GPIO.HIGH)
+        GPIO.output(DRA818_PTT, GPIO.LOW)
+        time.sleep(0.1)
+        #call("cd", shell=True)
+        playCommand = "aplay /home/pi/timestamped_pics/sstv.wav"
+        call(playCommand,shell = True)
+        time.sleep(10) # see if this acutally does anything
+        time.sleep(0.1)
+        GPIO.output(DRA818_PTT, GPIO.HIGH)
+        GPIO.output(DRA818_PD, GPIO.LOW)
+
