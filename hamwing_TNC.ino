@@ -1,31 +1,36 @@
-#include <stdio.h>
+// DRA818V_3
 
-/* Used Pins */
-#define PTT      A2  // to the DRA818 PD pin
-#define READ      4 //Read high or low
-
-float freq = 144.650;                 // tx/rx frequency
-
-int mode = 1; //mode = 0 or 1
-int squelch = 5;
-char ctcss[5] = "00000";
-int val = 0;
-//char startcommand[300];
+// set parameters for DRA818V
+#define PD    4
 
 
-void setup(){
-  pinMode(PTT, OUTPUT); 
-  pinMode(READ, INPUT); 
-  Serial.begin(9600); // for tx/rx to hamwing
-  //get it up and running
-  Serial.write("AT+DMOCONNECT\r\n");
-  //startcommand = "AT+DMOSETGROUP=%d,%f,%f,%s,%d,%s\r\n", mode, freq, freq, ctcss, squelch, ctcss
-  char startcommand[] = "AT+DMOSETGROUP=1,146.500,146.500,00000,5,00000\r\n";
-  Serial.write(startcommand);
+int bw = 1; // bandwidth in KHz ( 0= 12.5KHz or 1= 25KHz )
+float ftx = 144.8000; // tx frequency in MHz (134.0000 - 174.0000)
+float frx = 144.8000; // rx frequency in MHz (134.0000 - 174.0000)
+String tx_ctcss = "0000"; // ctcss frequency ( 0000 - 0038 ); 0000 = "no CTCSS" 
+String rx_ctcss = "0000"; // ctcss frequency ( 0000 - 0038 ); 0000 = "no CTCSS" 
+int squ = 0; // squelch level ( 0 - 8 ); 0 = "open" 
+
+void setup()
+{
+  Serial.begin(9600);
+
+  Serial.print("AT+DMOSETGROUP="); // begin message
+  Serial.print(bw,1);
+  Serial.print(",");
+  Serial.print(ftx,4);
+  Serial.print(",");
+  Serial.print(frx,4);
+  Serial.print(",");
+  Serial.print(tx_ctcss);
+  Serial.print(",");
+  Serial.print(squ);
+  Serial.print(",");
+  Serial.println(rx_ctcss);
+  pinMode(PD, OUTPUT);
+  digitalWrite(PD,HIGH);
 }
 
-void loop(){
-  val = digitalRead(READ);   // read the input pin
-  digitalWrite(PTT, val);
-  delay(1000); 
+void loop()
+{
 }
